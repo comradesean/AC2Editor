@@ -1,0 +1,305 @@
+================================================================================
+ASSASSIN'S CREED II - PS3 SAVE FILE EDITING REFERENCE
+================================================================================
+
+Last Updated: December 2024
+Source: PSX-Place thread, personal research, reverse engineering notes
+
+================================================================================
+SECTION 1: FILE STRUCTURE
+================================================================================
+
+All AC2 save files (OPTIONS and .SAV) use the same header format:
+
+Offset      Size    Description
+------      ----    -----------
+0x0-0x3     4       File size (excluding 8-byte header, little-endian)
+0x4-0x7     4       CRC32 checksum (little-endian)
+0x8+        varies  Actual file data
+
+IMPORTANT: When calculating checksum, use data starting at offset 0x8 only.
+The first 8 bytes are NOT included in the checksum calculation.
+
+================================================================================
+SECTION 2: CRC32 CHECKSUM PARAMETERS
+================================================================================
+
+OPTIONS FILE (BLUS30364AC2OPT/OPTIONS):
+---------------------------------------
+Polynomial:     0x4C11DB7
+Initial Value:  0x00000000
+XOR Output:     0x1BF3278A
+Reflect Input:  Yes
+Reflect Output: Yes
+
+GAME SAVES (AC2_0.SAV, AC2_1.SAV, etc.):
+----------------------------------------
+Polynomial:     0x4C11DB7
+Initial Value:  0xBAE23CD0
+XOR Output:     0xFFFFFFFF
+Reflect Input:  Yes
+Reflect Output: Yes
+
+AC BROTHERHOOD OPTIONS (for reference):
+---------------------------------------
+Polynomial:     0x4C11DB7
+Initial Value:  0x00000000
+XOR Output:     0x1B9BD78A
+
+TOOLS FOR CRC CALCULATION:
+- Online: http://www.sunshine2k.de/coding/javascript/crc/crc_js.html
+- CLI: Jacksum (java -jar jacksum.jar)
+- PS3: Bruteforce Save Data with custom BSD scripts
+
+================================================================================
+SECTION 3: EDITING WORKFLOW
+================================================================================
+
+STEP 1: DECRYPT SAVE (if encrypted)
+    - Use PFDTool or Bruteforce Save Data to decrypt PARAM.PFD
+    - Files will be marked in ~files_decrypted_by_pfdtool.txt
+
+STEP 2: BACKUP ORIGINAL FILE
+    - Always keep an untouched copy
+
+STEP 3: EXTRACT DATA FOR CHECKSUM
+    - Remove first 8 bytes (header)
+    - Keep only data from offset 0x8 onwards
+
+STEP 4: HEX EDIT
+    - Make changes at desired offsets (see Section 4/5)
+    - Note: Offsets in this guide are relative to file start (include header)
+
+STEP 5: RECALCULATE CHECKSUM
+    - Use appropriate CRC32 parameters for file type
+    - Calculate on data WITHOUT the 8-byte header
+
+STEP 6: REBUILD FILE
+    - Recalculate file size (data length, excluding header)
+    - Write new 4-byte size at offset 0x0
+    - Write new 4-byte checksum at offset 0x4
+    - Append edited data
+
+STEP 7: RE-ENCRYPT/RE-SIGN (if needed)
+    - Use PFDTool or Bruteforce Save Data to update PARAM.PFD
+
+================================================================================
+SECTION 4: OPTIONS FILE OFFSET MAP
+================================================================================
+
+SYSTEM/META
+-----------
+0x4-0x7         Checksum
+0x7C-0x7D       Game/Patch Version
+0x91            Unknown flag (changes when save created)
+
+LANGUAGE SETTINGS
+-----------------
+0x1F3           Subtitles toggle (00=off, 01=on)
+0x21E           Spoken language selector
+0x222-0x225     Spoken language ID:
+                - B597CC50 = English
+                - 90CC0F3C = French
+                - 81605748 = Spanish
+                - 7AFCF62B = Italian
+
+AUDIO SETTINGS (4-byte float values)
+------------------------------------
+0x237-0x23A     Music Volume
+0x24C-0x24F     Voice Volume
+0x261-0x264     SFX Volume
+
+Volume Values (hex):
+    0/10:  0000C0C2
+    1/10:  0000A0C1
+    2/10:  A0AB5FC1
+    3/10:  395227C1
+    4/10:  7EAEFEC0
+    5/10:  C2A8C0C0
+    6/10:  B2FB8DC0
+    7/10:  474646C0
+    8/10:  F116F8BF
+    9/10:  46476ABF
+    10/10: 00000000
+
+CAMERA SETTINGS
+---------------
+0x288-0x28B     X Look Sensitivity (4-byte float)
+0x29D-0x2A0     Y Look Sensitivity (4-byte float)
+0x2B2           3rd Person Camera: Invert X (00=off, 01=on)
+0x2C4           3rd Person Camera: Invert Y (00=off, 01=on)
+0x2D6           1st Person Camera: Invert X (00=off, 01=on)
+0x2E8           1st Person Camera: Invert Y (00=off, 01=on)
+
+Sensitivity Values (hex):
+    1/10:  0000003F
+    2/10:  9A99193F
+    3/10:  3333333F
+    4/10:  CDCC4C3F
+    5/10:  0000803F (default)
+    6/10:  9A99993F
+    7/10:  3333B33F
+    8/10:  CDCCCC3F
+    9/10:  6666E63F
+    10/10: 00000040
+
+DISPLAY SETTINGS
+----------------
+0x2FA           Action Camera Frequency (00-03)
+0x30C           Brightness (00-09, default=05)
+0x31E           Blood Toggle (00=off, 01=on)
+0x330           Flying Machine Controls (00=normal, 01=inverted)
+
+HUD SETTINGS (00=off, 01=on)
+----------------------------
+0x342           Health Meter
+0x354           Controls
+0x366           Updates
+0x378           Weapon
+0x38A           Mini-Map
+0x39C           Money
+0x3C0           SSI (Social Status Indicator)
+
+================================================================================
+SECTION 5: DLC/UNLOCK OFFSETS (OPTIONS FILE)
+================================================================================
+
+All unlocks: Change 00 to 01 at the specified offset
+
+EXCLUSIVE MAPS (Templar Lairs)
+------------------------------
+0x3D2           Palazzo Medici
+0x3E4           Basilica di Santa Maria Gloriosa dei Frari
+0x3F6           Arsenale di Venezia
+
+UPLAY REWARDS
+-------------
+0x462           Assassin's Creed II Theme (Free)
+0x474           Extra Throwing Knives
+0x486           Altair's Outfit
+0x498           Auditore Family Crypt  *** UPLAY EXCLUSIVE ***
+
+PROMOTIONAL CONTENT
+-------------------
+0x41A           Bonus Skin (Verizon Java code)
+
+DLC EPISODES
+------------
+0x582           Battle of Forli (Sequence 12)
+0x594           Unknown (activates with Assassin's Robes unlock)
+0x5A6           Bonfire of the Vanities (Sequence 13)
+
+PSP BLOODLINES CONNECTIVITY WEAPONS
+-----------------------------------
+0x5CB           PSP Weapon 1
+0x5CC           PSP Weapon 2
+0x5CD           PSP Weapon 3
+0x5CE           PSP Weapon 4
+0x5CF           PSP Weapon 5
+0x5D0           PSP Weapon 6
+
+================================================================================
+SECTION 6: GAME SAVE (.SAV) NOTES
+================================================================================
+
+Game saves use DIFFERENT checksum parameters than OPTIONS (see Section 2).
+
+Known offsets in AC2_0.SAV (research incomplete):
+- Money, items, collectibles stored in .SAV files
+- Backup saves stored in BK_0.SAV
+
+================================================================================
+SECTION 7: REGION CODES & FOLDER NAMES
+================================================================================
+
+US REGION (BLUS)
+----------------
+Game ID:        BLUS30364
+OPTIONS Folder: BLUS30364AC2OPT
+Save Folder:    BLUS30364AC2AC2_0 (slot 0), AC2_1, etc.
+
+EU REGION (BLES)
+----------------
+Game ID:        BLES00751
+OPTIONS Folder: BLES00751AC2OPT
+Save Folder:    BLES00751AC2AC2_0, etc.
+
+AC REVELATIONS (contains AC2 saves)
+-----------------------------------
+Game ID:        BLUS30537
+Folder:         BLUS30537AC2AC2_0, BLUS30537AC2OPT
+
+================================================================================
+SECTION 8: PATCH & DLC DOWNLOAD LINKS
+================================================================================
+
+US REGION (BLUS30364):
+
+Patch 1.02:
+http://b0.ww.np.dl.playstation.net/tppkg/np/BLUS30364/BLUS30364_T1/a60d08181441c87f/UP0001-BLUS30364_00-AC2PATCH00000002-A0102-V0100-PE.pkg
+
+Sequence 12 - Battle of Forli:
+http://zeus.dl.playstation.net/cdn/UP0001/BLUS30364_00/wj2YKCUEBqL9yD1PRB8oOOj91gys0hvRHAcXHoAXQqUmOjCc0M42O2LYVaO3EqqgGr3mkeNS53fXC1pdIjIpGbwsC8BRvSl9yAgSP.pkg
+
+Sequence 13 - Bonfire of the Vanities:
+http://zeus.dl.playstation.net/cdn/UP0001/BLUS30364_00/m5gByfcC26rW8lWmx0bnfiaWxrfQt38jr2hA431y9ewMyHWorNW2gHXWSow9EjbQkKpVR14PMoIhsSCg1HKiIHWlo2MrpuwKyaj1a.pkg
+
+EU REGION (BLES00751):
+
+Patch:
+http://b0.ww.np.dl.playstation.net/tppkg/np/BLES00751/BLES00751_T0/d56d0a6c92f81354/EP0001-BLES00751_00-AC2PATCH00000002-A0101-V0100-PE.pkg
+
+================================================================================
+SECTION 9: TOOLS & RESOURCES
+================================================================================
+
+SAVE DECRYPTION/SIGNING
+-----------------------
+- Bruteforce Save Data: PS3 save tool with BSD script support
+- PFDTool: Decrypts PARAM.PFD protected saves
+
+CRC CALCULATION
+---------------
+- Online Calculator: http://www.sunshine2k.de/coding/javascript/crc/crc_js.html
+- XOR Tool: https://xor.pw/
+- Jacksum CLI: java -jar jacksum.jar -a crc32 [options]
+
+HEX EDITORS
+-----------
+- HxD (Windows)
+- 010 Editor
+- https://www.save-editor.com/tools/wse_hex.html (online)
+
+REFERENCE LINKS
+---------------
+- PSX-Place Thread: https://www.psx-place.com/threads/40435/
+- Se7enSins PS3 Save Editing: https://www.se7ensins.com/forums/threads/840868/
+- Checksum Theory: https://hmapl.wordpress.com/2019/11/23/save-file-checksums/
+
+================================================================================
+SECTION 10: QUICK REFERENCE - COMMON TASKS
+================================================================================
+
+UNLOCK AUDITORE FAMILY CRYPT (Uplay):
+1. Decrypt OPTIONS file
+2. Change byte at 0x498 from 00 to 01
+3. Recalculate CRC32 (poly=0x4C11DB7, init=0x0, xor=0x1BF3278A)
+4. Update header with new checksum
+5. Re-sign save
+
+UNLOCK ALL UPLAY CONTENT:
+Set these offsets to 01:
+- 0x462 (Theme)
+- 0x474 (Throwing Knives)
+- 0x486 (Altair Outfit)
+- 0x498 (Auditore Crypt)
+
+UNLOCK ALL DLC MAPS:
+Set these offsets to 01:
+- 0x3D2, 0x3E4, 0x3F6 (Templar Lairs)
+- 0x582 (Battle of Forli)
+- 0x5A6 (Bonfire of Vanities)
+
+================================================================================
+END OF DOCUMENT
+================================================================================
